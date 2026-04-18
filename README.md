@@ -127,3 +127,38 @@ docker compose logs certbot
 | Certificat échoue | Attends 2-3 min que Duck DNS se propage, réessaie |
 | Erreur base de données | `docker compose logs db` pour voir le détail |
 | Disque non monté | `lsblk` pour vérifier, `sudo mount` si nécessaire |
+
+
+## Ajouter des fichiers manuellement et les faire apparaître dans Nextcloud
+
+### 1. Copier les fichiers sur le disque
+Les fichiers doivent être copiés dans le bon dossier data de Nextcloud.
+
+### 2. Corriger les droits depuis le container
+```bash
+docker compose exec app bash -c "chmod -R 755 /var/www/html/data/<user>/files/<chemin>"
+```
+
+### 3. Scanner les fichiers
+```bash
+# Scanner un dossier précis
+docker compose exec -u www-data app php occ files:scan --path="<user>/files/<chemin>"
+
+# Scanner tout un utilisateur
+docker compose exec -u www-data app php occ files:scan <user>
+
+# Scanner tout le monde
+docker compose exec -u www-data app php occ files:scan --all
+```
+
+### 4. En cas de problème de cache
+```bash
+docker compose exec -u www-data app php occ cache:flush
+docker compose exec -u www-data app php occ maintenance:repair
+docker compose exec -u www-data app php occ files:scan --all
+```
+
+### Notes
+- Les `chmod` depuis le host (`sudo chmod`) ne fonctionnent pas car le disque est monté dans le container Docker sur `/var/www/html`, pas sur `/mnt/mon-usb`
+- Le `-u www-data` est obligatoire pour `occ`, sinon ça crée des problèmes en base de données
+- Si les dossiers sont visibles mais vides, c'est quasi toujours un problème de droits (bit d'exécution manquant sur les dossiers)
